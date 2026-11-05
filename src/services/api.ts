@@ -504,26 +504,72 @@ export async function updateOrder(id: string, updates: Partial<Order>): Promise<
 // TABLES API
 // -----------------------------------------------------------------------------
 export async function getTables(): Promise<RestaurantTable[]> {
-  // 1. Prioritize reading directly from Supabase 'restaurant_tables'
+  // 1. Ambil data meja langsung dari Supabase
   if (getSupabasePublishableKey()) {
     try {
       const sbTables = await getRestaurantTablesFromSupabase();
-      if (sbTables && Array.isArray(sbTables) && sbTables.length > 0) {
-        const mapped: RestaurantTable[] = sbTables.map((t: any, index: number) => ({
-          id: Number(t.id) || index + 1,
-          table_number: Number(t.table_number ?? t.number ?? t.id ?? index + 1),
-          status: (t.status as any) || 'kosong',
-          capacity: Number(t.capacity) || 4,
-          current_customer_name: t.current_customer_name,
-          current_order_id: t.current_order_id,
-        }));
-        localStorage.setItem(STORAGE_KEYS.LOCAL_TABLES, JSON.stringify(mapped));
+
+      if (sbTables && Array.isArray(sbTables)) {
+        const mapped: RestaurantTable[] = sbTables
+          .filter((t: any) => t.is_active !== false)
+          .map((t: any) => ({
+            id: Number(t.table_number),
+            table_number: Number(t.table_number),
+            status: 'kosong',
+            capacity: 4,
+          }));
+
+        localStorage.setItem(
+          STORAGE_KEYS.LOCAL_TABLES,
+          JSON.stringify(mapped)
+        );
+
         return mapped;
       }
     } catch (e) {
-      console.warn('[Direct Supabase restaurant_tables fetch error, fallback to API]', e);
+      console.warn(
+        '[Supabase restaurant_tables fetch error]',
+        e
+      );
     }
   }
+
+  // 2. Ambil dari backend API sebagai cadangan
+  try {
+    const res = await fetch('/api/tables');
+
+    if (res.ok) {
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.tables;
+
+      if (Array.isArray(list) && list.length > 0) {
+        localStorage.setItem(
+          STORAGE_KEYS.LOCAL_TABLES,
+          JSON.stringify(list)
+        );
+
+        return list;
+      }
+    }
+  } catch (err) {
+    console.warn('Gagal mengambil data meja dari API.');
+  }
+
+  // 3. Gunakan data lokal sebagai cadangan
+  const cached = localStorage.getItem(
+    STORAGE_KEYS.LOCAL_TABLES
+  );
+
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch {
+      console.warn('Data meja lokal tidak valid.');
+    }
+  }
+
+  return INITIAL_TABLES;
+        }
 
   // 2. Fetch from backend API
   try {
