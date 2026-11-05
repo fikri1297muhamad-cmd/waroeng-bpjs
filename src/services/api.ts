@@ -299,8 +299,23 @@ export async function deleteMenuItem(id: string): Promise<boolean> {
 // ORDERS API
 // -----------------------------------------------------------------------------
 export async function getOrders(): Promise<Order[]> {
+  // Utamakan database Supabase
+  if (getSupabasePublishableKey()) {
+    try {
+      const supabaseOrders = await getRealOrdersFromSupabase();
+
+      if (supabaseOrders !== null) {
+        return supabaseOrders;
+      }
+    } catch (err) {
+      console.warn('Gagal mengambil pesanan dari Supabase:', err);
+    }
+  }
+
+  // Fallback jika Supabase belum tersedia
   try {
     const res = await fetch('/api/orders');
+
     if (res.ok) {
       return await res.json();
     }
@@ -308,6 +323,8 @@ export async function getOrders(): Promise<Order[]> {
     console.warn('Network issue fetching orders');
   }
 
+  return getSavedCustomerOrders();
+}
   // Fallback to customer's saved orders
   return getSavedCustomerOrders();
 }
