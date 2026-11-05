@@ -594,66 +594,77 @@ export async function getTables(): Promise<RestaurantTable[]> {
   return INITIAL_TABLES;
 }
 
-export async function updateTable(tableNumber: number, updates: Partial<RestaurantTable>): Promise<RestaurantTable> {
-  try {
-    const res = await fetch(`/api/tables/${tableNumber}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      if (updated && updated.table_number) {
-        const current = await getTables();
-        const nextList = current.map((t) =>
-          Number(t.table_number) === Number(tableNumber) ? { ...t, ...updated } : t
-        );
-        localStorage.setItem(STORAGE_KEYS.LOCAL_TABLES, JSON.stringify(nextList));
-        return updated;
+export async function updateTable(
+  tableNumber: number,
+  updates: Partial<RestaurantTable>
+): Promise<RestaurantTable> {
+  // 1. Simpan perubahan ke Supabase
+  if (getSupabasePublishableKey()) {
+    try {
+      const updatedTable = await updateTableInSupabase(
+        tableNumber,
+        updates
+      );
+
+      const current = await getTables();
+
+      const nextList = current.map((table) =>
+        Number(table.table_number) === Number(tableNumber)
+          ? {
+              ...table,
+              ...updates,
+              ...updatedTable,
+              id: Number(tableNumber),
+              table_number: Number(tableNumber),
+            }
+          : table
+      );
+
+      localStorage.setItem(
+        STORAGE_KEYS.LOCAL_TABLES,
+        JSON.stringify(nextList)
+      );
+
+      const result = nextList.find(
+        (table) =>
+          Number(table.table_number) === Number(tableNumber)
+      );
+
+      if (result) {
+        return result;
       }
+
+      throw new Error('Data meja tidak ditemukan setelah diperbarui.');
+    } catch (err) {
+      console.error('[Supabase update table error]', err);
+      throw err;
     }
-  } catch (err) {
-    console.warn('Network issue updating table', err);
   }
 
+  // 2. Jika Supabase belum dikonfigurasi, gunakan penyimpanan lokal
   const current = await getTables();
-  let found = false;
-  const updated = current.map((t) => {
-    if (Number(t.table_number) === Number(tableNumber)) {
-      found = true;
-      return { ...t, ...updates };
-    }
-    return t;
-  });
 
-  if (!found) {
-    const fallback: RestaurantTable = {
-      id: Number(tableNumber),
-      table_number: Number(tableNumber),
-      status: updates.status || 'kosong',
-      capacity: Number(updates.capacity) || 4,
-      current_customer_name: updates.current_customer_name,
-      current_order_id: updates.current_order_id,
-      ...updates,
-    };
-    updated.push(fallback);
-    localStorage.setItem(STORAGE_KEYS.LOCAL_TABLES, JSON.stringify(updated));
-    return fallback;
+  const updated = current.map((table) =>
+    Number(table.table_number) === Number(tableNumber)
+      ? { ...table, ...updates }
+      : table
+  );
+
+  localStorage.setItem(
+    STORAGE_KEYS.LOCAL_TABLES,
+    JSON.stringify(updated)
+  );
+
+  const result = updated.find(
+    (table) =>
+      Number(table.table_number) === Number(tableNumber)
+  );
+
+  if (result) {
+    return result;
   }
 
-  localStorage.setItem(STORAGE_KEYS.LOCAL_TABLES, JSON.stringify(updated));
-  const res = updated.find((t) => Number(t.table_number) === Number(tableNumber));
-  return (
-    res || {
-      id: Number(tableNumber),
-      table_number: Number(tableNumber),
-      status: updates.status || 'kosong',
-      capacity: Number(updates.capacity) || 4,
-      current_customer_name: updates.current_customer_name,
-      current_order_id: updates.current_order_id,
-      ...updates,
-    }
-  );
+  throw new Error('Nomor meja tidak ditemukan.');
 }
 
 // -----------------------------------------------------------------------------
