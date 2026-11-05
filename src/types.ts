@@ -48,3 +48,26 @@ export interface Order {
   updated_at: string;
 }
 
+export type TableStatus = 'kosong' | 'terisi' | 'reservasi';
+
+export interface RestaurantTable {
+  id: number;
+  table_number: number;
+  status: TableStatus;
+  current_customer_name?: string;
+  current_order_id?: string;
+  capacity: number;
+}
+
+export interface StaffProfile {
+  id: string;
+  user_id?: string;
+  email?: string;
+  full_name?: string;
+  name?: string;
+  role: 'admin' | 'kasir' | 'cashier' | string;
+  phone?: string;
+  created_at?: string;
+}
+
+export type UserRole = 'pelanggan' | 'kasir' | 'admin';
