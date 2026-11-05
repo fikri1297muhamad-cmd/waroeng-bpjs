@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Plus,
@@ -7,15 +8,31 @@ import {
   Save,
   X,
   Image,
+  LogOut,
+  ClipboardList,
 } from 'lucide-react';
-import { MenuItem } from '../types';
+import {
+  MenuItem,
+  Order,
+  OrderStatus,
+  RestaurantTable,
+  StaffProfile,
+} from '../types';
 import { formatRupiah } from '../services/api';
 
 interface AdminViewProps {
-  menuItems: MenuItem[];
-  onAddItem: (item: Omit<MenuItem, 'id'>) => void;
-  onUpdateItem: (item: MenuItem) => void;
-  onDeleteItem: (itemId: string) => void;
+  menus: MenuItem[];
+  tables: RestaurantTable[];
+  orders: Order[];
+  adminProfile: StaffProfile | null;
+  onAddMenu: (item: Omit<MenuItem, 'id'>) => void;
+  onUpdateMenu: (item: MenuItem) => void;
+  onDeleteMenu: (itemId: string) => void;
+  onUpdateTable: (...args: any[]) => void;
+  onUpdateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  onViewReceipt: (order: Order) => void;
+  supabaseStatus: any;
+  onLogout: () => void;
 }
 
 const emptyForm = {
@@ -28,10 +45,18 @@ const emptyForm = {
 };
 
 export const AdminView: React.FC<AdminViewProps> = ({
-  menuItems,
-  onAddItem,
-  onUpdateItem,
-  onDeleteItem,
+  menus,
+  tables,
+  orders,
+  adminProfile,
+  onAddMenu,
+  onUpdateMenu,
+  onDeleteMenu,
+  onUpdateTable,
+  onUpdateOrderStatus,
+  onViewReceipt,
+  supabaseStatus,
+  onLogout,
 }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -65,12 +90,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
     }
 
     if (editingId) {
-      onUpdateItem({
-        ...form,
-        id: editingId,
-      });
+      onUpdateMenu({ ...form, id: editingId });
     } else {
-      onAddItem(form);
+      onAddMenu(form);
     }
 
     setIsFormOpen(false);
@@ -80,9 +102,13 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   const handleDelete = (id: string) => {
     if (window.confirm('Yakin ingin menghapus produk ini?')) {
-      onDeleteItem(id);
+      onDeleteMenu(id);
     }
   };
+
+  const pendingOrders = orders.filter(
+    (order) => order.payment_status === 'belum_bayar'
+  );
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
@@ -92,8 +118,43 @@ export const AdminView: React.FC<AdminViewProps> = ({
             Admin Waroeng BPJS
           </h1>
           <p className="mt-1 text-sm text-stone-500">
-            Kelola produk, harga, kategori, dan ketersediaan menu.
+            Halo, {adminProfile?.full_name || adminProfile?.name || 'Admin'}
           </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className="flex items-center gap-2 rounded-xl bg-stone-200 px-4 py-3 font-semibold"
+        >
+          <LogOut className="h-4 w-4" />
+          Keluar
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border bg-white p-4">
+          <p className="text-sm text-stone-500">Total Produk</p>
+          <p className="text-2xl font-bold">{menus.length}</p>
+        </div>
+        <div className="rounded-xl border bg-white p-4">
+          <p className="text-sm text-stone-500">Jumlah Meja</p>
+          <p className="text-2xl font-bold">{tables.length}</p>
+        </div>
+        <div className="rounded-xl border bg-white p-4">
+          <p className="text-sm text-stone-500">Total Pesanan</p>
+          <p className="text-2xl font-bold">{orders.length}</p>
+        </div>
+        <div className="rounded-xl border bg-white p-4">
+          <p className="text-sm text-stone-500">Belum Dibayar</p>
+          <p className="text-2xl font-bold">{pendingOrders.length}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Package className="h-5 w-5 text-amber-600" />
+          <h2 className="text-lg font-bold">Kelola Produk ({menus.length})</h2>
         </div>
 
         <button
@@ -128,9 +189,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </label>
               <input
                 value={form.name}
-                onChange={(e) =>
-                  setForm({ ...form, name: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
                 className="w-full rounded-xl border bg-white p-3"
                 placeholder="Contoh: Nasi Goreng"
@@ -245,14 +304,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        <Package className="h-5 w-5 text-amber-600" />
-        <h2 className="text-lg font-bold">
-          Daftar Produk ({menuItems.length})
-        </h2>
-      </div>
-
-      {menuItems.length === 0 ? (
+      {menus.length === 0 ? (
         <div className="rounded-2xl border border-dashed p-8 text-center text-stone-400">
           Belum ada produk. Tekan Tambah Produk untuk memulai.
         </div>
@@ -269,7 +321,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
               </tr>
             </thead>
             <tbody>
-              {menuItems.map((item) => (
+              {menus.map((item) => (
                 <tr key={item.id} className="border-t">
                   <td className="p-3">
                     <div className="flex items-center gap-3">
@@ -325,6 +377,57 @@ export const AdminView: React.FC<AdminViewProps> = ({
           </table>
         </div>
       )}
+
+      <div className="rounded-xl border bg-white p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <ClipboardList className="h-5 w-5 text-amber-600" />
+          <h2 className="font-bold">Pesanan Terbaru</h2>
+        </div>
+
+        {orders.length === 0 ? (
+          <p className="text-sm text-stone-500">Belum ada pesanan.</p>
+        ) : (
+          <div className="space-y-3">
+            {orders.slice(0, 5).map((order) => (
+              <div
+                key={order.id}
+                className="flex flex-wrap items-center justify-between gap-3 border-b pb-3"
+              >
+                <div>
+                  <p className="font-bold">{order.order_number}</p>
+                  <p className="text-sm text-stone-500">
+                    Meja {order.table_number} · {order.customer_name}
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {formatRupiah(order.total)}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onViewReceipt(order)}
+                    className="rounded-lg bg-stone-100 px-3 py-2 text-sm font-semibold"
+                  >
+                    Struk
+                  </button>
+                  {order.status !== 'selesai' &&
+                    order.status !== 'dibatalkan' && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateOrderStatus(order.id, 'selesai')
+                        }
+                        className="rounded-lg bg-green-100 px-3 py-2 text-sm font-semibold text-green-800"
+                      >
+                        Selesaikan
+                      </button>
+                    )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
