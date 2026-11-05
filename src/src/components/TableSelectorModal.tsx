@@ -1,33 +1,28 @@
-import React, { useState } from 'react';
-import { X, Utensils, User, Hash } from 'lucide-react';
+
+import React from 'react';
+import { X, Utensils, Hash } from 'lucide-react';
+import { RestaurantTable } from '../types';
 
 interface TableSelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (tableNumber: string, customerName: string) => void;
-  initialTable?: string;
+  selectedTable: number;
+  onSelectTable: (tableNum: number) => void;
+  tables: RestaurantTable[];
 }
 
 export const TableSelectorModal: React.FC<TableSelectorModalProps> = ({
   isOpen,
   onClose,
-  onConfirm,
-  initialTable = '',
+  selectedTable,
+  onSelectTable,
+  tables,
 }) => {
-  const [tableNumber, setTableNumber] = useState(initialTable);
-  const [customerName, setCustomerName] = useState('');
-
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!tableNumber || !customerName.trim()) {
-      alert('Nomor meja dan nama pelanggan wajib diisi.');
-      return;
-    }
-
-    onConfirm(tableNumber, customerName.trim());
+  const handleSelect = (tableNumber: number) => {
+    onSelectTable(tableNumber);
+    onClose();
   };
 
   return (
@@ -36,7 +31,7 @@ export const TableSelectorModal: React.FC<TableSelectorModalProps> = ({
         <div className="flex items-center justify-between border-b p-4">
           <div className="flex items-center gap-2">
             <Utensils className="h-5 w-5 text-amber-500" />
-            <h2 className="text-lg font-bold">Data Pemesanan</h2>
+            <h2 className="text-lg font-bold">Pilih Meja</h2>
           </div>
 
           <button
@@ -49,58 +44,47 @@ export const TableSelectorModal: React.FC<TableSelectorModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 p-4">
-          <div>
-            <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-              <Hash className="h-4 w-4" />
-              Nomor Meja
-            </label>
+        <div className="p-4">
+          <div className="flex items-center gap-2 mb-3 text-sm font-semibold">
+            <Hash className="h-4 w-4" />
+            Nomor Meja
+          </div>
 
-            <select
-              value={tableNumber}
-              onChange={(e) => setTableNumber(e.target.value)}
-              required
-              className="w-full rounded-xl border border-stone-300 bg-white p-3"
-            >
-              <option value="">Pilih nomor meja</option>
-              {Array.from({ length: 100 }, (_, index) => {
-                const number = String(index + 1).padStart(2, '0');
+          {tables.length === 0 ? (
+            <p className="text-sm text-stone-500 text-center py-6">
+              Data meja belum tersedia.
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 gap-2 max-h-72 overflow-y-auto">
+              {tables.map((table) => {
+                const number = Number(table.table_number);
+                const selected = selectedTable === number;
+
                 return (
-                  <option key={number} value={number}>
-                    Meja {number}
-                  </option>
+                  <button
+                    key={table.table_number}
+                    type="button"
+                    onClick={() => handleSelect(number)}
+                    className={`rounded-xl border p-3 font-bold text-sm ${
+                      selected
+                        ? 'bg-amber-500 border-amber-600 text-stone-950'
+                        : 'bg-white border-stone-200 text-stone-700 hover:border-amber-400'
+                    }`}
+                  >
+                    {String(number).padStart(2, '0')}
+                    {selected && (
+                      <span className="block text-[10px]">Dipilih</span>
+                    )}
+                  </button>
                 );
               })}
-            </select>
-          </div>
+            </div>
+          )}
 
-          <div>
-            <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
-              <User className="h-4 w-4" />
-              Nama Pelanggan
-            </label>
-
-            <input
-              type="text"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              required
-              placeholder="Masukkan nama Anda"
-              className="w-full rounded-xl border border-stone-300 p-3"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full rounded-xl bg-amber-500 p-3 font-bold text-stone-950 hover:bg-amber-400"
-          >
-            Lanjutkan
-          </button>
-
-          <p className="text-center text-xs text-stone-500">
-            Pembayaran dilakukan di kasir.
+          <p className="text-center text-xs text-stone-500 mt-4">
+            Pembayaran dilakukan langsung di kasir.
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );
