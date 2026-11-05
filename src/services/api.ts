@@ -201,6 +201,12 @@ export async function addMenuItem(
   }
 
   throw new Error('Supabase belum dikonfigurasi. Menu tidak disimpan.');
+               }
+
+    return newItem;
+  }
+
+  throw new Error('Supabase belum dikonfigurasi. Menu tidak disimpan.');
 }
 
   // Local fallback
