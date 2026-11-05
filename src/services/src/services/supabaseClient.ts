@@ -534,46 +534,26 @@ export async function createOrderViaSupabaseRpc(
     }
 
     // Verifikasi respons database nyata
-    if (rpcResponse.error) {
-      throw new Error(`Database Error (${rpcResponse.error.code || 'RPC'}): ${rpcResponse.error.message}`);
-    }
+        const response = rpcData as {
+      order_id?: string;
+      order_code?: string;
+      total_amount?: number;
+      status?: string;
+    };
 
-    const data = rpcResponse.data;
-    if (!data) {
-      throw new Error('Database tidak mengembalikan konfirmasi pesanan.');
-    }
-
-    // Parsing order_number & id dari hasil pengembalian fungsi
-    let orderNumber = '';
-    let orderId = '';
-    let totalAmount = 0;
-
-    if (typeof data === 'object') {
-      orderNumber =
-        data.order_number ||
-        data.order_no ||
-        data.orderNumber ||
-        (data.id ? `BPJS-${String(payload.tableNumber).padStart(2, '0')}-${String(data.id).slice(-4)}` : '');
-      orderId = String(data.id || data.order_id || '');
-      totalAmount = Number(data.total || data.total_amount || 0);
-    } else if (typeof data === 'string' || typeof data === 'number') {
-      orderNumber = String(data);
-      orderId = String(data);
-    }
-
-    if (!orderNumber) {
-      orderNumber = `BPJS-${String(payload.tableNumber).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
+    if (!response.order_id || !response.order_code) {
+      throw new Error('Respons pesanan dari database tidak lengkap.');
     }
 
     return {
       success: true,
-      orderNumber,
-      orderId,
-      total: totalAmount,
+      orderNumber: response.order_code,
+      orderId: response.order_id,
+      total: Number(response.total_amount || 0),
       tableNumber: payload.tableNumber,
-      customerName: payload.customerName,
+      customerName: payload.customerName.trim(),
       createdAt: new Date().toISOString(),
-      rawResponse: data,
+      rawResponse: rpcData,
     };
   } finally {
     isRpcSubmitting = false;
