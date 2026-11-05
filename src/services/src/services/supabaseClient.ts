@@ -868,9 +868,39 @@ export async function updateMenuItemInSupabase(
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase client belum aktif.');
 
+  const safeUpdates: Record<string, any> = {};
+
+  if (updates.name !== undefined) {
+    safeUpdates.name = String(updates.name).trim();
+  }
+
+  if (updates.category !== undefined) {
+    safeUpdates.category = updates.category;
+  }
+
+  if (updates.price !== undefined) {
+    safeUpdates.price = Number(updates.price);
+  }
+
+  if (updates.image_url !== undefined) {
+    safeUpdates.image_url = updates.image_url;
+  }
+
+  if (updates.description !== undefined) {
+    safeUpdates.description = updates.description;
+  }
+
+  if (updates.is_available !== undefined) {
+    safeUpdates.is_available = Boolean(updates.is_available);
+  }
+
+  if (Object.keys(safeUpdates).length === 0) {
+    throw new Error('Tidak ada perubahan data menu.');
+  }
+
   const { data, error } = await client
     .from('menu_items')
-    .update(updates)
+    .update(safeUpdates)
     .eq('id', id)
     .select()
     .single();
@@ -878,9 +908,9 @@ export async function updateMenuItemInSupabase(
   if (error) {
     throw new Error(`Database Error (${error.code}): ${error.message}`);
   }
+
   return data;
 }
-
 /**
  * Admin: Menghapus menu dari tabel 'menu_items'
  */
