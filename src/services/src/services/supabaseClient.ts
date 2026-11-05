@@ -1012,14 +1012,11 @@ export async function recordOrderPaymentInSupabase(
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase client belum aktif.');
 
+  // Catat pembayaran sebagai lunas di database
   const { data, error } = await client
     .from('orders')
     .update({
-      payment_status: 'lunas',
-      payment_method: method,
-      cash_received: cashReceived,
-      cash_change: cashChange,
-      updated_at: new Date().toISOString(),
+      payment_status: 'paid',
     })
     .eq('id', orderId)
     .select()
@@ -1028,5 +1025,6 @@ export async function recordOrderPaymentInSupabase(
   if (error) {
     throw new Error(`Database Error (${error.code}): ${error.message}`);
   }
+
   return data;
 }
