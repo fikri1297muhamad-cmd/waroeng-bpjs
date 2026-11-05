@@ -934,25 +934,31 @@ export async function updateTableInSupabase(
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase client belum aktif.');
 
+  const safeUpdates: Record<string, any> = {};
+
+  if (updates.table_name !== undefined) {
+    safeUpdates.table_name = String(updates.table_name).trim();
+  }
+
+  if (updates.is_active !== undefined) {
+    safeUpdates.is_active = Boolean(updates.is_active);
+  }
+
+  if (Object.keys(safeUpdates).length === 0) {
+    throw new Error('Tidak ada perubahan data meja.');
+  }
+
   const { data, error } = await client
     .from('restaurant_tables')
-    .update(updates)
+    .update(safeUpdates)
     .eq('table_number', tableNumber)
     .select()
     .maybeSingle();
 
   if (error) {
-    // Try by id
-    const { data: d2, error: err2 } = await client
-      .from('restaurant_tables')
-      .update(updates)
-      .eq('id', tableNumber)
-      .select()
-      .maybeSingle();
-
-    if (err2) throw new Error(`Database Error (${err2.code}): ${err2.message}`);
-    return d2;
+    throw new Error(`Database Error (${error.code}): ${error.message}`);
   }
+
   return data;
 }
 
