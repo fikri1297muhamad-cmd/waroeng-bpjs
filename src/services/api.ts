@@ -303,19 +303,81 @@ export async function deleteMenuItem(id: string): Promise<boolean> {
 // -----------------------------------------------------------------------------
 // ORDERS API
 // -----------------------------------------------------------------------------
-export async function getOrders(): Promise<Order[]> {
-  // Utamakan database Supabase
+export async function updateOrder(
+  id: string,
+  updates: Partial<Order>
+): Promise<Order> {
   if (getSupabasePublishableKey()) {
     try {
-      const supabaseOrders = await getRealOrdersFromSupabase();
-
-      if (supabaseOrders !== null) {
-        return supabaseOrders;
+      // Simpan perubahan status pesanan
+      if (updates.status !== undefined) {
+        await updateOrderStatusInSupabase(id, updates.status);
       }
+
+      // Simpan status pembayaran jika sudah lunas
+      if (updates.payment_status === 'lunas') {
+        await recordOrderPaymentInSupabase(
+          id,
+          updates.payment_method || 'tunai',
+          updates.cash_received,
+          updates.cash_change
+        );
+      }
+
+      // Ambil kembali data terbaru dari Supabase
+      const orders = await getRealOrdersFromSupabase();
+      const updatedOrder = orders?.find((o) => o.id === id);
+
+      if (updatedOrder) {
+        updateSavedCustomerOrder(updatedOrder);
+        return updatedOrder;
+      }
+
+      throw new Error('Pesanan berhasil diperbarui, tetapi data terbaru belum dapat dibaca.');
     } catch (err) {
-      console.warn('Gagal mengambil pesanan dari Supabase:', err);
+      console.error('[Supabase update order error]', err);
+      throw err;
     }
   }
+
+  // Fallback jika Supabase belum dikonfigurasi
+  try {
+    const res = await fetch(`/api/orders/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+
+    if (res.ok) {
+      const updated = await res.json();
+      updateSavedCustomerOrder(updated);
+      return updated;
+    }
+  } catch (err) {
+    console.warn('Network issue updating order');
+  }
+
+  const saved = getSavedCustomerOrders();
+  const idx = saved.findIndex((o) => o.id === id);
+
+  if (idx !== -1) {
+    const updated = {
+      ...saved[idx],
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+
+    saved[idx] = updated;
+    localStorage.setItem(
+      STORAGE_KEYS.SAVED_ORDERS,
+      JSON.stringify(saved)
+    );
+
+    return updated;
+  }
+
+  throw new Error('Order not found');
+}
 
   // Fallback jika Supabase belum tersedia
   try {
