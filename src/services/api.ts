@@ -291,17 +291,12 @@ export async function updateMenuItem(id: string, updates: Partial<MenuItem>): Pr
 }
 
 export async function deleteMenuItem(id: string): Promise<boolean> {
-  try {
-    const res = await fetch(`/api/menus/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (res.ok) return true;
-  } catch (err) {
-    console.warn('Network issue deleting menu', err);
+  if (getSupabasePublishableKey()) {
+    await deleteMenuItemFromSupabase(id);
+    return true;
   }
 
-  const current = await getMenus();
-  const updated = current.filter((m) => m && String(m.id) !== String(id));
-  localStorage.setItem(STORAGE_KEYS.LOCAL_MENUS, JSON.stringify(updated));
-  return true;
+  throw new Error('Supabase belum dikonfigurasi. Menu tidak dihapus.');
 }
 
 // -----------------------------------------------------------------------------
