@@ -1,34 +1,88 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import {
   Clock,
   CheckCircle2,
   Receipt,
   RefreshCw,
   ShoppingBag,
+  LogOut,
+  ClipboardList,
+  CreditCard,
 } from 'lucide-react';
-import { Order } from '../types';
+import {
+  Order,
+  OrderStatus,
+  PaymentMethod,
+  RestaurantTable,
+  StaffProfile,
+} from '../types';
 import { formatRupiah } from '../services/api';
 
 interface KasirViewProps {
   orders: Order[];
-  onMarkPaid: (orderId: string) => void;
-  onRefresh?: () => void;
-  onShowReceipt?: (order: Order) => void;
+  tables: RestaurantTable[];
+  kasirProfile: StaffProfile | null;
+  onRefreshOrders: () => void;
+  onUpdateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  onRecordPayment: (
+    orderId: string,
+    method: PaymentMethod,
+    cashReceived?: number,
+    cashChange?: number
+  ) => void;
+  onViewReceipt: (order: Order) => void;
+  onLogout: () => void;
 }
 
 export const KasirView: React.FC<KasirViewProps> = ({
   orders,
-  onMarkPaid,
-  onRefresh,
-  onShowReceipt,
+  tables,
+  kasirProfile,
+  onRefreshOrders,
+  onUpdateOrderStatus,
+  onRecordPayment,
+  onViewReceipt,
+  onLogout,
 }) => {
+  const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>('tunai');
+  const [cashReceived, setCashReceived] = useState('');
+
   const pendingOrders = orders.filter(
-    (order) => order.payment_status !== 'Lunas'
+    (order) => order.payment_status === 'belum_bayar'
   );
 
   const paidOrders = orders.filter(
-    (order) => order.payment_status === 'Lunas'
+    (order) => order.payment_status === 'lunas'
   );
+
+  const handlePayment = () => {
+    if (!paymentOrder) return;
+
+    const received = Number(cashReceived);
+    const total = Number(paymentOrder.total);
+
+    if (paymentMethod === 'tunai' && received < total) {
+      alert('Uang yang diterima kurang dari total pembayaran.');
+      return;
+    }
+
+    const change =
+      paymentMethod === 'tunai' ? received - total : undefined;
+
+    onRecordPayment(
+      paymentOrder.id,
+      paymentMethod,
+      paymentMethod === 'tunai' ? received : undefined,
+      change
+    );
+
+    setPaymentOrder(null);
+    setCashReceived('');
+    setPaymentMethod('tunai');
+  };
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -38,18 +92,32 @@ export const KasirView: React.FC<KasirViewProps> = ({
             Dashboard Kasir
           </h1>
           <p className="mt-1 text-sm text-stone-500">
-            Kelola pesanan dan pembayaran pelanggan.
+            {kasirProfile?.full_name || kasirProfile?.email || 'Kasir'}
+          </p>
+          <p className="text-xs text-stone-500">
+            {tables.length} meja terdaftar
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-semibold"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onRefreshOrders}
+            className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </button>
+
+          <button
+            type="button"
+            onClick={onLogout}
+            className="flex items-center gap-2 rounded-xl bg-stone-800 px-3 py-2 text-sm font-semibold text-white"
+          >
+            <LogOut className="h-4 w-4" />
+            Keluar
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -80,47 +148,36 @@ export const KasirView: React.FC<KasirViewProps> = ({
         </h2>
 
         {pendingOrders.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-400">
+          <div className="rounded-2xl border border-dashed p-8 text-center text-stone-400">
             <ShoppingBag className="mx-auto mb-2 h-10 w-10" />
-            <p>Belum ada pesanan yang menunggu pembayaran.</p>
+            Belum ada pesanan yang menunggu pembayaran.
           </div>
         ) : (
           <div className="space-y-3">
             {pendingOrders.map((order) => (
-              <div
-                key={order.id}
-                className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
+              <div key={order.id} className="rounded-2xl border bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap justify-between gap-2">
                   <div>
-                    <h3 className="font-bold text-stone-900">
-                      Pesanan #{order.id.slice(0, 8)}
+                    <h3 className="font-bold">
+                      {order.order_number || `Pesanan #${order.id.slice(0, 8)}`}
                     </h3>
-                    <p className="mt-1 text-sm text-stone-500">
-                      Meja {order.table_number}
+                    <p className="text-sm text-stone-500">
+                      {order.customer_name} · Meja {order.table_number}
                     </p>
                     <p className="text-xs text-stone-400">
                       {new Date(order.created_at).toLocaleString('id-ID')}
                     </p>
                   </div>
-
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+                  <span className="h-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
                     Belum Bayar
                   </span>
                 </div>
 
-                <div className="my-3 space-y-2 border-y border-stone-100 py-3">
+                <div className="my-3 space-y-2 border-y py-3">
                   {order.items?.map((item, index) => (
-                    <div
-                      key={`${order.id}-${index}`}
-                      className="flex justify-between gap-3 text-sm"
-                    >
-                      <span>
-                        {item.name} × {item.quantity}
-                      </span>
-                      <span className="font-medium">
-                        {formatRupiah(item.price * item.quantity)}
-                      </span>
+                    <div key={`${order.id}-${index}`} className="flex justify-between gap-3 text-sm">
+                      <span>{item.name} × {item.quantity}</span>
+                      <span>{formatRupiah(item.price * item.quantity)}</span>
                     </div>
                   ))}
                 </div>
@@ -133,13 +190,22 @@ export const KasirView: React.FC<KasirViewProps> = ({
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => onMarkPaid(order.id)}
-                    className="rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white hover:bg-green-700"
-                  >
-                    Tandai Lunas
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onUpdateOrderStatus(order.id, 'diproses')}
+                      className="rounded-xl border px-3 py-2 text-sm font-semibold"
+                    >
+                      Diproses
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentOrder(order)}
+                      className="rounded-xl bg-green-600 px-4 py-3 text-sm font-bold text-white"
+                    >
+                      Bayar
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -148,7 +214,8 @@ export const KasirView: React.FC<KasirViewProps> = ({
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-bold text-stone-900">
+        <h2 className="mb-3 flex items-center gap-2 text-lg font-bold">
+          <ClipboardList className="h-5 w-5" />
           Riwayat Pembayaran Lunas
         </h2>
 
@@ -159,25 +226,19 @@ export const KasirView: React.FC<KasirViewProps> = ({
         ) : (
           <div className="space-y-2">
             {paidOrders.map((order) => (
-              <div
-                key={order.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-4"
-              >
+              <div key={order.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white p-4">
                 <div>
-                  <p className="font-bold">
-                    Pesanan #{order.id.slice(0, 8)}
-                  </p>
+                  <p className="font-bold">{order.order_number}</p>
                   <p className="text-sm text-stone-500">
-                    Meja {order.table_number}
+                    Meja {order.table_number} · {order.customer_name}
                   </p>
                   <p className="font-bold text-green-700">
                     {formatRupiah(order.total)}
                   </p>
                 </div>
-
                 <button
                   type="button"
-                  onClick={() => onShowReceipt?.(order)}
+                  onClick={() => onViewReceipt(order)}
                   className="flex items-center gap-2 rounded-lg bg-stone-100 px-3 py-2 text-sm font-semibold"
                 >
                   <Receipt className="h-4 w-4" />
@@ -188,6 +249,84 @@ export const KasirView: React.FC<KasirViewProps> = ({
           </div>
         )}
       </section>
+
+      {paymentOrder && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-extrabold">Pembayaran Kasir</h2>
+              <button
+                type="button"
+                onClick={() => setPaymentOrder(null)}
+                aria-label="Tutup pembayaran"
+              >
+                <span className="text-xl">×</span>
+              </button>
+            </div>
+
+            <p className="text-sm text-stone-500">
+              {paymentOrder.order_number}
+            </p>
+            <p className="text-2xl font-extrabold text-amber-600">
+              {formatRupiah(paymentOrder.total)}
+            </p>
+
+            <label className="block text-sm font-semibold">
+              Metode pembayaran
+            </label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+              className="w-full rounded-xl border p-3"
+            >
+              <option value="tunai">Tunai</option>
+              <option value="qris">QRIS</option>
+              <option value="debit">Debit</option>
+              <option value="transfer">Transfer</option>
+            </select>
+
+            {paymentMethod === 'tunai' && (
+              <div>
+                <label className="mb-1 block text-sm font-semibold">
+                  Uang diterima (Rp)
+                </label>
+                <input
+                  type="number"
+                  min={paymentOrder.total}
+                  value={cashReceived}
+                  onChange={(e) => setCashReceived(e.target.value)}
+                  placeholder="Masukkan jumlah uang"
+                  className="w-full rounded-xl border p-3"
+                />
+                {cashReceived !== '' && Number(cashReceived) >= paymentOrder.total && (
+                  <p className="mt-2 text-sm font-semibold text-green-700">
+                    Kembalian: {formatRupiah(Number(cashReceived) - paymentOrder.total)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentOrder(null)}
+                className="flex-1 rounded-xl border p-3 font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handlePayment}
+                disabled={paymentMethod === 'tunai' && Number(cashReceived) < paymentOrder.total}
+                className="flex-1 rounded-xl bg-green-600 p-3 font-bold text-white disabled:opacity-50"
+              >
+                <CreditCard className="mr-1 inline h-4 w-4" />
+                Konfirmasi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
