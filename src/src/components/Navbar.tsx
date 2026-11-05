@@ -1,10 +1,20 @@
+
 import React from 'react';
-import { ShoppingBag, UtensilsCrossed, UserCheck, Shield, ChevronDown, Database } from 'lucide-react';
+import {
+  ShoppingBag,
+  UtensilsCrossed,
+  UserCheck,
+  Shield,
+  ChevronDown,
+  Database,
+  Receipt,
+} from 'lucide-react';
 import { UserRole } from '../types';
 import { RESTAURANT_INFO } from '../data/initialData';
 
 interface NavbarProps {
-  currentRole: UserRole;  onSelectRole: (role: UserRole) => void;
+  currentRole: UserRole;
+  onSelectRole: (role: UserRole) => void;
   selectedTable: number;
   onOpenTableModal: () => void;
   cartCount: number;
@@ -27,119 +37,120 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-stone-900 text-stone-100 shadow-md">
-      {/* Top Banner Address / Info */}
-      <div className="bg-amber-600 px-4 py-1 text-center text-xs font-medium tracking-wide text-amber-950 flex items-center justify-between">
-        <span className="truncate mx-auto">
+      <div className="flex items-center justify-between bg-amber-600 px-4 py-1 text-center text-xs font-medium text-amber-950">
+        <span className="mx-auto truncate">
           📍 {RESTAURANT_INFO.address}
         </span>
-        <span className="hidden sm:inline text-[11px] font-mono bg-amber-700/30 px-2 py-0.5 rounded text-amber-950">
+        <span className="hidden rounded bg-amber-700/30 px-2 py-0.5 font-mono sm:inline">
           {RESTAURANT_INFO.openHours}
         </span>
       </div>
 
-      {/* Main Top Bar */}
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-        {/* Brand Zone */}
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-inner text-white font-black text-xl tracking-tighter">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-xl font-black text-white shadow-inner">
             W
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-lg font-black tracking-tight text-white leading-tight">
+              <span className="text-lg font-black tracking-tight text-white">
                 WAROENG BPJS
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              <span className="rounded border border-amber-500/30 bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-400">
                 Cianjur
               </span>
             </div>
-            <p className="text-xs text-stone-400 leading-none">
-              Pemesanan Makanan Online · Meja 01–15
+            <p className="text-xs text-stone-400">
+              Pemesanan Makanan Online
             </p>
           </div>
         </div>
 
-        {/* Center / Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Table Selector Pill */}
-          <button
-            onClick={onOpenTableModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 text-xs font-semibold active:scale-95 transition-transform"
-            title="Pilih Nomor Meja"
-          >
-            <span className="text-stone-400 font-normal">Meja:</span>
-            <span className="text-amber-400 font-mono font-bold text-sm">
-              {String(selectedTable).padStart(2, '0')}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
-          </button>
+          {currentRole === 'pelanggan' && (
+            <>
+              <button
+                type="button"
+                onClick={onOpenTableModal}
+                className="flex items-center gap-1.5 rounded-lg border border-stone-700 bg-stone-800 px-3 py-1.5 text-xs font-semibold text-stone-200"
+                title="Pilih Nomor Meja"
+              >
+                <span className="text-stone-400">Meja:</span>
+                <span className="font-mono text-sm font-bold text-amber-400">
+                  {String(selectedTable).padStart(2, '0')}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
 
-          {/* Role Mode Indicator / Switcher */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                if (currentRole === 'pelanggan') {
-                  onSelectRole('kasir');
-                } else if (currentRole === 'kasir') {
-                  onSelectRole('admin');
-                } else {
-                  onSelectRole('pelanggan');
-                }
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 border ${
-                currentRole === 'admin'
-                  ? 'bg-rose-950/80 text-rose-300 border-rose-700/60'
-                  : currentRole === 'kasir'
-                  ? 'bg-emerald-950/80 text-emerald-300 border-emerald-700/60'
-                  : 'bg-stone-800 text-stone-300 border-stone-700 hover:bg-stone-750'
-              }`}
-              title="Ganti Mode (Pelanggan / Kasir / Admin)"
-            >
+              <button
+                type="button"
+                onClick={onOpenHistory}
+                className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-stone-700 bg-stone-800 text-stone-200"
+                aria-label="Riwayat Pesanan"
+              >
+                <Receipt className="h-5 w-5" />
+                {historyCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-stone-900 bg-rose-600 px-1 text-[11px] font-bold text-white">
+                    {historyCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenCart}
+                className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500 text-stone-950"
+                aria-label="Buka Keranjang"
+              >
+                <ShoppingBag className="h-5 w-5" />
+                {cartCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-stone-900 bg-rose-600 px-1 text-[11px] font-bold text-white">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
+
+          {currentRole !== 'pelanggan' && (
+            <div className="flex items-center gap-1 rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-xs font-bold">
               {currentRole === 'admin' ? (
                 <>
-                  <Shield className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Admin</span>
-                </>
-              ) : currentRole === 'kasir' ? (
-                <>
-                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Kasir</span>
+                  <Shield className="h-4 w-4 text-rose-400" />
+                  Admin
                 </>
               ) : (
                 <>
-                  <UtensilsCrossed className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="hidden sm:inline">Pelanggan</span>
-                  <span className="sm:hidden">Mode</span>
+                  <UserCheck className="h-4 w-4 text-emerald-400" />
+                  Kasir
                 </>
               )}
-            </button>
-          </div>
+            </div>
+          )}
 
-          {/* Supabase Status / Test Button */}
-          {onOpenSupabaseModal && (
+          {currentRole === 'pelanggan' && (
             <button
-              onClick={onOpenSupabaseModal}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-950/70 border border-emerald-600/60 hover:bg-emerald-900/80 text-emerald-300 text-xs font-bold transition-all active:scale-95 cursor-pointer"
-              title="Pengujian Koneksi Supabase"
+              type="button"
+              onClick={() => onSelectRole('kasir')}
+              className="flex items-center gap-1 rounded-lg border border-stone-700 bg-stone-800 px-2.5 py-2 text-xs font-bold text-stone-300"
+              title="Masuk ke halaman staf"
             >
-              <Database className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Uji Supabase</span>
+              <UtensilsCrossed className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Staf</span>
             </button>
           )}
 
-          {/* Cart Button (for desktop / quick tap) */}
-          <button
-            onClick={onOpenCart}
-            className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold active:scale-90 transition-transform shadow-sm"
-            aria-label="Buka Keranjang Pesanan"
-          >
-            <ShoppingBag className="w-5 h-5 text-stone-950" />
-            {cartCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-rose-600 text-white text-[11px] font-bold flex items-center justify-center border-2 border-stone-900 shadow animate-bounce">
-                {cartCount}
-              </span>
-            )}
-          </button>
+          {onOpenSupabaseModal && currentRole === 'admin' && (
+            <button
+              type="button"
+              onClick={onOpenSupabaseModal}
+              className="flex items-center gap-1 rounded-lg border border-emerald-600/60 bg-emerald-950/70 px-2.5 py-1.5 text-xs font-bold text-emerald-300"
+              title="Uji koneksi Supabase"
+            >
+              <Database className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Uji Supabase</span>
+            </button>
+          )}
         </div>
       </div>
     </header>
