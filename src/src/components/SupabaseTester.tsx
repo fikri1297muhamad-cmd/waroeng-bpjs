@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
-import { Database, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
-import { supabase } from '../services/supabaseClient';
+import {
+  Database,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+} from 'lucide-react';
+import { getSupabaseClient } from '../services/supabaseClient';
 
 export const SupabaseTester: React.FC = () => {
   const [status, setStatus] = useState<
     'idle' | 'loading' | 'success' | 'error'
   >('idle');
+
   const [message, setMessage] = useState('');
 
   const testConnection = async () => {
@@ -13,7 +19,15 @@ export const SupabaseTester: React.FC = () => {
     setMessage('Memeriksa koneksi database...');
 
     try {
-      const { error } = await supabase
+      const client = getSupabaseClient();
+
+      if (!client) {
+        throw new Error(
+          'Supabase belum dikonfigurasi. Periksa URL dan publishable key.'
+        );
+      }
+
+      const { error } = await client
         .from('menu_items')
         .select('id')
         .limit(1);
@@ -23,7 +37,7 @@ export const SupabaseTester: React.FC = () => {
       }
 
       setStatus('success');
-      setMessage('Koneksi Supabase berhasil.');
+      setMessage('Koneksi Supabase berhasil. Tabel menu_items dapat dibaca.');
     } catch (error) {
       setStatus('error');
       setMessage(
@@ -56,7 +70,9 @@ export const SupabaseTester: React.FC = () => {
         ) : (
           <Database className="h-4 w-4" />
         )}
-        {status === 'loading' ? 'Memeriksa...' : 'Tes Koneksi Database'}
+        {status === 'loading'
+          ? 'Memeriksa...'
+          : 'Tes Koneksi Database'}
       </button>
 
       {message && (
