@@ -12,6 +12,7 @@ import {
 updateOrderStatusInSupabase,
 recordOrderPaymentInSupabase,
   addMenuItemToSupabase,
+  addMenuItemToSupabase,
   
 const STORAGE_KEYS = {
   CART: 'waroeng_bpjs_cart',
