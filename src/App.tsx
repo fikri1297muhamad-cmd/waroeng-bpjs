@@ -914,12 +914,7 @@ export default function App() {
                 ✕
               </button>
             </div>
-            <SupabaseTester
-              onSyncComplete={() => {
-                refreshSupabaseData();
-                showToast('Data Supabase berhasil disinkronkan');
-              }}
-            />
+            <SupabaseTester />
           </div>
         </div>
       )}
