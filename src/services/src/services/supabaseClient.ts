@@ -236,7 +236,7 @@ export async function runSupabaseConnectionTest(customKey?: string): Promise<Sup
   try {
     const { data: staffData, error: staffError } = await client
       .from('staff_profiles')
-      .select('id, role')
+      .select('user_id, role')
       .limit(10);
     if (staffError) {
       baseResult.staffTest.error = staffError.message;
