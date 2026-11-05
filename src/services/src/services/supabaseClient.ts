@@ -736,32 +736,89 @@ export async function getRealOrdersFromSupabase(): Promise<Order[] | null> {
   if (!client) return null;
 
   try {
-    const { data, error } = await client
+    // Ambil pesanan
+    const { data: orders, error: ordersError } = await client
       .from('orders')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.warn('[getRealOrdersFromSupabase error]', error);
+    if (ordersError) {
+      console.warn('[getRealOrdersFromSupabase error]', ordersError);
       return null;
     }
-    return (data || []).map((o: any) => ({
-      id: String(o.id),
-      order_number: o.order_number || `BPJS-${o.id}`,
-      customer_name: o.customer_name || 'Pelanggan',
-      table_number: Number(o.table_number || o.table_id || 1),
-      status: o.status || 'menunggu',
-      payment_status: o.payment_status || 'belum_bayar',
-      payment_method: o.payment_method || null,
-      subtotal: Number(o.subtotal || o.total || 0),
-      total: Number(o.total || 0),
-      cash_received: o.cash_received ? Number(o.cash_received) : undefined,
-      cash_change: o.cash_change ? Number(o.cash_change) : undefined,
-      customer_notes: o.customer_notes || o.notes || '',
-      items: Array.isArray(o.items) ? o.items : [],
-      created_at: o.created_at || new Date().toISOString(),
-      updated_at: o.updated_at || new Date().toISOString(),
-    }));
+
+    if (!orders || orders.length === 0) {
+      return [];
+    }
+
+    // Ambil rincian item untuk semua pesanan
+    const orderIds = orders.map((o: any) => o.id);
+
+    const { data: orderItems, error: itemsError } = await client
+      .from('order_items')
+      .select('*')
+      .in('order_id', orderIds);
+
+    if (itemsError) {
+      console.warn('[getRealOrdersFromSupabase items error]', itemsError);
+      return null;
+    }
+
+    // Kelompokkan item berdasarkan order_id
+    const itemsByOrder: Record<string, any[]> = {};
+
+    (orderItems || []).forEach((item: any) => {
+      const orderId = String(item.order_id);
+
+      if (!itemsByOrder[orderId]) {
+        itemsByOrder[orderId] = [];
+      }
+
+      itemsByOrder[orderId].push({
+        id: String(item.id),
+        menu_id: String(item.menu_id),
+        name: item.item_name,
+        price: Number(item.item_price || 0),
+        quantity: Number(item.quantity || 0),
+      });
+    });
+
+    // Sesuaikan status database dengan status aplikasi
+    return orders.map((o: any) => {
+      const dbStatus = String(o.status || 'new').toLowerCase();
+      const dbPayment = String(o.payment_status || 'unpaid').toLowerCase();
+
+      const statusMap: Record<string, OrderStatus> = {
+        new: 'menunggu',
+        menunggu: 'menunggu',
+        processing: 'diproses',
+        diproses: 'diproses',
+        ready: 'siap',
+        siap: 'siap',
+        completed: 'selesai',
+        selesai: 'selesai',
+        cancelled: 'dibatalkan',
+        dibatalkan: 'dibatalkan',
+      };
+
+      return {
+        id: String(o.id),
+        order_number: o.order_code || '',
+        customer_name: o.customer_name || 'Pelanggan',
+        table_number: Number(o.table_number || 1),
+        status: statusMap[dbStatus] || 'menunggu',
+        payment_status: dbPayment === 'paid' || dbPayment === 'lunas'
+          ? 'lunas'
+          : 'belum_bayar',
+        payment_method: null,
+        subtotal: Number(o.total_amount || 0),
+        total: Number(o.total_amount || 0),
+        customer_notes: '',
+        items: itemsByOrder[String(o.id)] || [],
+        created_at: o.created_at || new Date().toISOString(),
+        updated_at: o.created_at || new Date().toISOString(),
+      };
+    });
   } catch (err) {
     console.warn('[getRealOrdersFromSupabase error]', err);
     return null;
