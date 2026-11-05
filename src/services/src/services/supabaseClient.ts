@@ -561,92 +561,67 @@ export async function signInStaffWithSupabase(
   requiredRole: 'admin' | 'kasir'
 ): Promise<{ success: boolean; profile?: StaffProfile; error?: string }> {
   const client = getSupabaseClient();
+
   if (!client) {
     return {
       success: false,
-      error: 'Koneksi Supabase belum terkonfigurasi. Pastikan Publishable Key terisi.',
+      error: 'Koneksi Supabase belum terkonfigurasi.',
     };
   }
 
   try {
-    const { data: authData, error: authError } = await client.auth.signInWithPassword({
-      email: email.trim(),
-      password: pass,
-    });
+    const { data: authData, error: authError } =
+      await client.auth.signInWithPassword({
+        email: email.trim(),
+        password: pass,
+      });
 
     if (authError) {
       return { success: false, error: authError.message };
     }
 
     if (!authData.user) {
-      return { success: false, error: 'Pengguna tidak ditemukan dalam sistem autentikasi.' };
+      return {
+        success: false,
+        error: 'Pengguna tidak ditemukan.',
+      };
     }
 
     const userId = authData.user.id;
     const userEmail = authData.user.email || email.trim();
 
-    // Query tabel staff_profiles untuk memeriksa peran
-    let profileData: any = null;
-    try {
-      // 1. Coba cari berdasarkan ID pengguna
-      let profileData: any = null;
+    const { data: profileData, error: profileError } = await client
+      .from('staff_profiles')
+      .select('user_id, full_name, role, created_at')
+      .eq('user_id', userId)
+      .maybeSingle();
 
-const { data, error } = await client
-  .from('staff_profiles')
-  .select('user_id, full_name, role, created_at')
-  .eq('user_id', userId)
-  .maybeSingle();
-
-if (error) {
-  await client.auth.signOut();
-  return {
-    success: false,
-    error: 'Gagal membaca profil staf: ' + error.message,
-  };
-}
-
-if (!data) {
-  await client.auth.signOut();
-  return {
-    success: false,
-    error: 'Profil staf belum terdaftar di database.',
-  };
-}
-
-profileData = data;
-        // 2. Coba cari berdasarkan user_id atau email
-        const { data: data2 } = await client
-          .from('staff_profiles')
-          .select('*')
-          .or(`user_id.eq.${userId},email.eq.${userEmail}`)
-          .maybeSingle();
-
-        if (data2) profileData = data2;
-      }
-    } catch (e: any) {
-      console.warn('[staff_profiles query issue]', e);
+    if (profileError) {
+      await client.auth.signOut();
+      return {
+        success: false,
+        error: 'Gagal membaca profil staf: ' + profileError.message,
+      };
     }
 
     if (!profileData) {
       await client.auth.signOut();
       return {
         success: false,
-        error: `Akses ditolak: Akun ${userEmail} berhasil login di Supabase Auth, tetapi data peran belum terdaftar di tabel staff_profiles.`,
+        error: 'Profil staf belum terdaftar di database.',
       };
     }
 
     const rawRole = String(profileData.role || '').toLowerCase();
-    const isAdmin = rawRole === 'admin' || rawRole === 'superadmin' || rawRole === 'manager';
-    const isKasir = rawRole === 'kasir' || rawRole === 'cashier' || rawRole === 'staff';
 
-    // ATURAN KEAMANAN:
-    // Admin hanya boleh menggunakan fitur Admin.
-    // Kasir hanya boleh menggunakan fitur Kasir.
+    const isAdmin = ['admin', 'superadmin', 'manager'].includes(rawRole);
+    const isKasir = ['kasir', 'cashier', 'staff'].includes(rawRole);
+
     if (requiredRole === 'admin' && !isAdmin) {
       await client.auth.signOut();
       return {
         success: false,
-        error: `Akses Ditolak: Akun Anda memiliki peran '${profileData.role}'. Hanya akun dengan peran 'admin' yang dapat mengakses Dashboard Admin.`,
+        error: 'Akses ditolak. Akun ini bukan akun Admin.',
       };
     }
 
@@ -654,27 +629,33 @@ profileData = data;
       await client.auth.signOut();
       return {
         success: false,
-        error: `Akses Ditolak: Akun Anda memiliki peran '${profileData.role}'. Hanya akun dengan peran 'kasir' yang dapat mengakses Dashboard Kasir.`,
+        error: 'Akses ditolak. Akun ini bukan akun Kasir.',
       };
     }
 
     const staffProfile: StaffProfile = {
-      id: profileData.id,
-      user_id: profileData.user_id || userId,
-      email: profileData.email || userEmail,
-      full_name: profileData.full_name || profileData.name || userEmail,
+      id: userId,
+      user_id: userId,
+      email: userEmail,
+      full_name: profileData.full_name || userEmail,
       role: profileData.role,
-      phone: profileData.phone,
+      created_at: profileData.created_at,
     };
 
-    localStorage.setItem('waroeng_bpjs_logged_staff', JSON.stringify(staffProfile));
+    localStorage.setItem(
+      'waroeng_bpjs_logged_staff',
+      JSON.stringify(staffProfile)
+    );
+
     return { success: true, profile: staffProfile };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Terjadi kesalahan sistem saat autentikasi.' };
+    await client.auth.signOut();
+    return {
+      success: false,
+      error: err.message || 'Terjadi kesalahan sistem saat autentikasi.',
+    };
   }
 }
-
-/**
  * Logout Staf Supabase
  */
 export async function signOutStaff(): Promise<void> {
