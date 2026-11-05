@@ -13,6 +13,7 @@ updateOrderStatusInSupabase,
 recordOrderPaymentInSupabase,
   addMenuItemToSupabase,
   addMenuItemToSupabase,
+  deleteMenuItemFromSupabase,
   
 const STORAGE_KEYS = {
   CART: 'waroeng_bpjs_cart',
