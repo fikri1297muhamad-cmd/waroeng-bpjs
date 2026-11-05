@@ -180,32 +180,27 @@ export async function getMenus(): Promise<MenuItem[]> {
   return INITIAL_MENU_ITEMS;
 }
 
-export async function addMenuItem(item: Omit<MenuItem, 'id'>): Promise<MenuItem> {
-  const newItem: MenuItem = {
-    ...item,
-    id: `menu-${Date.now()}`,
-    image_url:
-      item.image_url || '/src/assets/images/ayam_bakar_komplit_1793819916487.jpg',
-  };
+export async function addMenuItem(
+  item: Omit<MenuItem, 'id'>
+): Promise<MenuItem> {
+  if (getSupabasePublishableKey()) {
+    const created = await addMenuItemToSupabase(item);
 
-  try {
-    const res = await fetch('/api/menus', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newItem),
-    });
-    if (res.ok) {
-      const created = await res.json();
-      if (created && created.id) {
-        const current = await getMenus();
-        const updated = [created, ...current.filter((m) => m && String(m.id) !== String(created.id))];
-        localStorage.setItem(STORAGE_KEYS.LOCAL_MENUS, JSON.stringify(updated));
-        return created;
-      }
-    }
-  } catch (err) {
-    console.warn('Network issue adding menu', err);
+    const newItem: MenuItem = {
+      id: String(created.id),
+      name: created.name,
+      category: created.category || 'makanan',
+      price: Number(created.price),
+      image_url: created.image_url || '',
+      description: created.description || '',
+      is_available: created.is_available ?? true,
+    };
+
+    return newItem;
   }
+
+  throw new Error('Supabase belum dikonfigurasi. Menu tidak disimpan.');
+}
 
   // Local fallback
   const current = await getMenus();
