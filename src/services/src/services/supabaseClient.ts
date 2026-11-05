@@ -589,15 +589,31 @@ export async function signInStaffWithSupabase(
     let profileData: any = null;
     try {
       // 1. Coba cari berdasarkan ID pengguna
-      const { data, error } = await client
-        .from('staff_profiles')
-        .select('*')
-        .eq('id', userId)
-        .maybeSingle();
+      let profileData: any = null;
 
-      if (!error && data) {
-        profileData = data;
-      } else {
+const { data, error } = await client
+  .from('staff_profiles')
+  .select('user_id, full_name, role, created_at')
+  .eq('user_id', userId)
+  .maybeSingle();
+
+if (error) {
+  await client.auth.signOut();
+  return {
+    success: false,
+    error: 'Gagal membaca profil staf: ' + error.message,
+  };
+}
+
+if (!data) {
+  await client.auth.signOut();
+  return {
+    success: false,
+    error: 'Profil staf belum terdaftar di database.',
+  };
+}
+
+profileData = data;
         // 2. Coba cari berdasarkan user_id atau email
         const { data: data2 } = await client
           .from('staff_profiles')
