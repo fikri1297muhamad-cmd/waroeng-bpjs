@@ -498,6 +498,39 @@ export async function createOrderViaSupabaseRpc(
           rpcResponse = tableIdRetry;
         }
       }
+          }
+    // Panggil RPC pertama
+    let rpcResponse = await client.rpc('create_order', rpcArgs);
+
+    // Jika terjadi galat signature mismatch (misal fungsi mengharapkan tanpa p_ atau dengan p_table_id),
+    // lakukan penyesuaian otomatis
+    if (rpcResponse.error) {
+      const errMsg = rpcResponse.error.message || '';
+      console.warn('[create_order percobaan 1 gagal]', errMsg);
+
+      // Coba variasi tanpa prefix p_
+      const altArgs: Record<string, any> = {
+        customer_name: payload.customerName.trim(),
+        table_number: payload.tableNumber,
+        items: formattedItems,
+        notes: payload.notes || '',
+      };
+      const retryResponse = await client.rpc('create_order', altArgs);
+      if (!retryResponse.error) {
+        rpcResponse = retryResponse;
+      } else {
+        // Coba variasi dengan p_table_id jika table_id yang diharapkan
+        const tableIdArgs: Record<string, any> = {
+          p_customer_name: payload.customerName.trim(),
+          p_table_id: payload.tableId ?? payload.tableNumber,
+          p_items: formattedItems,
+          p_notes: payload.notes || '',
+        };
+        const tableIdRetry = await client.rpc('create_order', tableIdArgs);
+        if (!tableIdRetry.error) {
+          rpcResponse = tableIdRetry;
+        }
+      }
     }
 
     // Verifikasi respons database nyata
