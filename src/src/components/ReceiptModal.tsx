@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { X, Receipt, Printer, CheckCircle2 } from 'lucide-react';
+import { X, Receipt, Printer, CheckCircle2, Clock } from 'lucide-react';
 import { Order } from '../types';
 import { formatRupiah } from '../services/api';
 
@@ -16,13 +17,15 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 }) => {
   if (!isOpen || !order) return null;
 
+  const isPaid = order.payment_status === 'lunas';
+
   const handlePrint = () => {
     window.print();
   };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="w-full max-w-sm overflow-y-auto rounded-2xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b p-4 print:hidden">
           <div className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-amber-500" />
@@ -43,33 +46,66 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
               <br />
               Kabupaten Cianjur
             </p>
+
             <div className="my-4 border-t border-dashed border-stone-300" />
-            <div className="flex items-center justify-center gap-2 text-green-600">
-              <CheckCircle2 className="h-5 w-5" />
-              <span className="font-bold">Pembayaran Lunas</span>
+
+            <div
+              className={`flex items-center justify-center gap-2 ${
+                isPaid ? 'text-green-600' : 'text-amber-600'
+              }`}
+            >
+              {isPaid ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : (
+                <Clock className="h-5 w-5" />
+              )}
+              <span className="font-bold">
+                {isPaid ? 'PEMBAYARAN LUNAS' : 'BELUM DIBAYAR'}
+              </span>
             </div>
           </div>
 
           <div className="my-4 space-y-2 text-sm">
             <div className="flex justify-between gap-2">
               <span className="text-stone-500">Nomor pesanan</span>
-              <span className="font-semibold">{order.id.slice(0, 8)}</span>
+              <span className="font-semibold">
+                {order.order_number || order.id.slice(0, 8)}
+              </span>
             </div>
+
+            <div className="flex justify-between gap-2">
+              <span className="text-stone-500">Nama pelanggan</span>
+              <span className="font-semibold">{order.customer_name}</span>
+            </div>
+
             <div className="flex justify-between gap-2">
               <span className="text-stone-500">Nomor meja</span>
               <span className="font-semibold">{order.table_number}</span>
             </div>
+
             <div className="flex justify-between gap-2">
               <span className="text-stone-500">Tanggal</span>
-              <span className="font-semibold">
+              <span className="text-right font-semibold">
                 {new Date(order.created_at).toLocaleString('id-ID')}
               </span>
             </div>
+
+            {isPaid && order.payment_method && (
+              <div className="flex justify-between gap-2">
+                <span className="text-stone-500">Metode pembayaran</span>
+                <span className="font-semibold uppercase">
+                  {order.payment_method}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="border-y border-dashed border-stone-300 py-3">
             {order.items?.map((item, index) => (
-              <div key={index} className="mb-2 flex justify-between gap-3 text-sm">
+              <div
+                key={`${order.id}-${index}`}
+                className="mb-2 flex justify-between gap-3 text-sm"
+              >
                 <span>
                   {item.name} × {item.quantity}
                 </span>
@@ -85,6 +121,19 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             <span>{formatRupiah(order.total)}</span>
           </div>
 
+          {isPaid && order.cash_received !== undefined && (
+            <div className="mt-3 space-y-2 border-t border-dashed pt-3 text-sm">
+              <div className="flex justify-between">
+                <span>Uang diterima</span>
+                <span>{formatRupiah(order.cash_received)}</span>
+              </div>
+              <div className="flex justify-between font-bold">
+                <span>Kembalian</span>
+                <span>{formatRupiah(order.cash_change || 0)}</span>
+              </div>
+            </div>
+          )}
+
           <p className="mt-5 text-center text-xs text-stone-500">
             Terima kasih telah berbelanja di Waroeng BPJS.
           </p>
@@ -99,6 +148,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             <Printer className="h-4 w-4" />
             Cetak
           </button>
+
           <button
             type="button"
             onClick={onClose}
