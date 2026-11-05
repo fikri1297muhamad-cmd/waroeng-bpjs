@@ -1,34 +1,60 @@
+
 import React, { useState } from 'react';
 import { X, LockKeyhole, User, LogIn } from 'lucide-react';
-import { UserRole } from '../types';
+import { UserRole, StaffProfile } from '../types';
+import { signInStaffWithSupabase } from '../services/supabaseClient';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (username: string, password: string) => void;
-  error?: string;
+  targetRole: 'admin' | 'kasir';
+  onLoginSuccess: (role: UserRole, profile?: StaffProfile) => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
-  onLogin,
-  error,
+  targetRole,
+  onLoginSuccess,
 }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('admin');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!username.trim() || !password) {
+    if (!email.trim() || !password) {
+      setError('Email dan password wajib diisi.');
       return;
     }
 
-    onLogin(username.trim(), password);
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await signInStaffWithSupabase(
+        email.trim(),
+        password,
+        targetRole
+      );
+
+      if (!result.success || !result.profile) {
+        setError(result.error || 'Login gagal. Periksa akun Anda.');
+        return;
+      }
+
+      onLoginSuccess(targetRole, result.profile);
+      setEmail('');
+      setPassword('');
+    } catch (err: any) {
+      setError(err.message || 'Terjadi kesalahan saat login.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,8 +62,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b p-4">
           <div>
-            <h2 className="text-lg font-extrabold">Login Waroeng BPJS</h2>
-            <p className="text-xs text-stone-500">Admin dan Kasir</p>
+            <h2 className="text-lg font-extrabold">
+              Login Waroeng BPJS
+            </h2>
+            <p className="text-xs text-stone-500">
+              Masuk sebagai {targetRole === 'admin' ? 'Admin' : 'Kasir'}
+            </p>
           </div>
 
           <button
@@ -52,31 +82,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-4 p-5">
           <div>
-            <label className="mb-2 block text-sm font-semibold">
-              Jenis Akun
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className="w-full rounded-xl border border-stone-300 bg-white p-3"
-            >
-              <option value="admin">Admin</option>
-              <option value="kasir">Kasir</option>
-            </select>
-          </div>
-
-          <div>
             <label className="mb-2 flex items-center gap-2 text-sm font-semibold">
               <User className="h-4 w-4" />
-              Username
+              Email Akun Supabase
             </label>
             <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               autoComplete="username"
               required
-              placeholder="Masukkan username"
+              placeholder="Masukkan email akun"
               className="w-full rounded-xl border border-stone-300 p-3"
             />
           </div>
@@ -105,10 +121,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 p-3 font-bold text-stone-950"
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 p-3 font-bold text-stone-950 disabled:opacity-50"
           >
             <LogIn className="h-5 w-5" />
-            Masuk
+            {loading ? 'Memeriksa akun...' : 'Masuk'}
           </button>
 
           <p className="text-center text-xs text-stone-500">
