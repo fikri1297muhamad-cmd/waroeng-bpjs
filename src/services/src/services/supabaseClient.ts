@@ -972,12 +972,23 @@ export async function updateOrderStatusInSupabase(
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase client belum aktif.');
 
+  const statusMap: Record<string, string> = {
+    menunggu: 'new',
+    diproses: 'processing',
+    siap: 'ready',
+    selesai: 'completed',
+    dibatalkan: 'cancelled',
+  };
+
+  const databaseStatus = statusMap[status];
+
+  if (!databaseStatus) {
+    throw new Error('Status pesanan tidak dikenal.');
+  }
+
   const { data, error } = await client
     .from('orders')
-    .update({
-      status,
-      updated_at: new Date().toISOString(),
-    })
+    .update({ status: databaseStatus })
     .eq('id', orderId)
     .select()
     .single();
@@ -985,6 +996,7 @@ export async function updateOrderStatusInSupabase(
   if (error) {
     throw new Error(`Database Error (${error.code}): ${error.message}`);
   }
+
   return data;
 }
 
