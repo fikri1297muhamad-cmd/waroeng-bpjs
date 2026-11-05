@@ -12,14 +12,14 @@ interface OrderSuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: Order | null;
-  onShowReceipt?: (order: Order) => void;
+  onViewReceipt?: (order: Order) => void;
 }
 
 export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
   isOpen,
   onClose,
   order,
-  onShowReceipt,
+  onViewReceipt,
 }) => {
   if (!isOpen || !order) return null;
 
@@ -52,8 +52,13 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             <div className="flex justify-between gap-2 text-sm">
               <span className="text-stone-500">Nomor pesanan</span>
               <span className="font-bold">
-                #{order.id.slice(0, 8)}
+                #{order.order_number || order.id.slice(0, 8)}
               </span>
+            </div>
+
+            <div className="mt-2 flex justify-between gap-2 text-sm">
+              <span className="text-stone-500">Nama pelanggan</span>
+              <span className="font-bold">{order.customer_name}</span>
             </div>
 
             <div className="mt-2 flex justify-between gap-2 text-sm">
@@ -64,7 +69,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             <div className="mt-2 flex justify-between gap-2 text-sm">
               <span className="text-stone-500">Status pembayaran</span>
               <span className="font-bold text-amber-600">
-                Belum Bayar
+                {order.payment_status === 'lunas' ? 'Lunas' : 'Belum Bayar'}
               </span>
             </div>
 
@@ -77,10 +82,10 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
           </div>
 
           <div className="space-y-2">
-            {onShowReceipt && (
+            {onViewReceipt && (
               <button
                 type="button"
-                onClick={() => onShowReceipt(order)}
+                onClick={() => onViewReceipt(order)}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 p-3 font-semibold"
               >
                 <Receipt className="h-4 w-4" />
