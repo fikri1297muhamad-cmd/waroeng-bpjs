@@ -275,21 +275,24 @@ export async function runSupabaseConnectionTest(customKey?: string): Promise<Sup
 /**
  * Membaca daftar menu langsung dari tabel 'menu_items' di Supabase
  */
+/**
+ * Membaca daftar meja langsung dari tabel 'restaurant_tables' di Supabase
+ */
 export async function getRestaurantTablesFromSupabase(): Promise<any[] | null> {
   const client = getSupabaseClient();
   if (!client) return null;
 
   try {
-    // Try order by table_number or id
     const { data, error } = await client
       .from('restaurant_tables')
       .select('*')
-      .order('id', { ascending: true });
+      .order('table_number', { ascending: true });
 
     if (error) {
       console.warn('[Supabase restaurant_tables error]', error);
       return null;
     }
+
     return data || [];
   } catch (err) {
     console.warn('[Supabase restaurant_tables fetch error]', err);
