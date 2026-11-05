@@ -177,12 +177,12 @@ export async function runSupabaseConnectionTest(customKey?: string): Promise<Sup
     baseResult.menuTest.error = err.message || 'Gagal menghubungi tabel menu_items';
   }
 
-  // 2. Test reading `restaurant_tables`
+    // 2. Test reading `restaurant_tables`
   try {
     const { data: tableData, error: tableError } = await client
       .from('restaurant_tables')
       .select('*')
-      .order('id', { ascending: true })
+      .order('table_number', { ascending: true })
       .limit(50);
 
     if (tableError) {
@@ -192,17 +192,14 @@ export async function runSupabaseConnectionTest(customKey?: string): Promise<Sup
       baseResult.tableTest.success = true;
       baseResult.tableTest.count = tableData?.length || 0;
       baseResult.tableTest.tables = (tableData || []).map((t: any) => ({
-        id: t.id,
-        table_number: t.table_number ?? t.number ?? t.id,
-        status: t.status || 'kosong',
-        capacity: t.capacity || 4,
+        table_number: t.table_number,
+        status: t.is_active ? 'kosong' : 'nonaktif',
       }));
     }
   } catch (err: any) {
     baseResult.tableTest.success = false;
     baseResult.tableTest.error = err.message || 'Gagal menghubungi tabel restaurant_tables';
   }
-
   // 3. Test reading `orders`
   try {
     const { data: ordersData, error: ordersError } = await client
